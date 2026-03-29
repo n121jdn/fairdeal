@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -8,12 +8,15 @@ from api.orders import OrderAPI
 from core.state_manager import StateManager
 from models.order import Order
 from simulation.simulator import Simulator
-
+from dotenv import load_dotenv
+load_dotenv()  
 app = FastAPI(title="Dynamic Order Throttling System")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN")    
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
