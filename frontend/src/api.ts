@@ -1,0 +1,52 @@
+import type { Metrics, Order, SimResult } from "./types";
+
+const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+export async function createOrder(order: Order) {
+  const res = await fetch(`${BASE}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(order),
+  });
+  return res.json();
+}
+
+export async function getState() {
+  const res = await fetch(`${BASE}/state`);
+  return res.json();
+}
+
+export async function patchRiders(count: number) {
+  const r = await fetch(`${BASE}/riders`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ count }),
+  });
+  return r.json();
+}
+
+export async function patchState(payload: { active_riders?: number; avg_delivery_time?: number }) {
+  const r = await fetch(`${BASE}/state`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return r.json();
+}
+
+export async function fetchMetrics(): Promise<Metrics> {
+  const r = await fetch(`${BASE}/metrics`);
+  return r.json();
+}
+
+export async function postTick() {
+  const r = await fetch(`${BASE}/tick`, { method: "POST" });
+  return r.json();
+}
+
+export async function postSimulate(duration_minutes: number): Promise<SimResult> {
+  const r = await fetch(`${BASE}/simulate?duration_minutes=${duration_minutes}`, {
+    method: "POST",
+  });
+  return r.json();
+}
