@@ -11,12 +11,10 @@ from simulation.simulator import Simulator
 from dotenv import load_dotenv
 load_dotenv()  
 app = FastAPI(title="Dynamic Order Throttling System")
-
+frontend_origin = os.getenv("FRONTEND_ORIGIN", "*") 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("FRONTEND_ORIGIN")    
-    ],
+    allow_origins=[frontend_origin] if frontend_origin else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
