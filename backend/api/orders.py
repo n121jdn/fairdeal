@@ -14,26 +14,26 @@ class OrderAPI:
         self.state = state
 
     def handle_order(self, order: Order) -> Status:
-        decision = self.engine.decide(order, self.state)
+        status, reason = self.engine.decide(order, self.state)  # unpack tuple
 
-        if decision == Status.ACCEPTED:
+        if status == Status.ACCEPTED:
             order.status = Status.ACCEPTED
             order.accepted_at = datetime.now()
-            self.state.add_order(order)         
+            self.state.add_order(order)
             logger.info(
-                f"ACCEPTED  {order.order_id}  "
+                f"ACCEPTED  {order.order_id}  reason={reason}  "
                 f"dist={order.distance_km}km  "
                 f"queue={self.state.get_queue_len()}  "
                 f"riders={self.state.active_riders}"
             )
         else:
             order.status = Status.REJECTED
-            self.state.reject_order()          
+            self.state.reject_order()
             logger.info(
-                f"REJECTED  {order.order_id}  "
+                f"REJECTED  {order.order_id}  reason={reason}  "
                 f"dist={order.distance_km}km  "
                 f"queue={self.state.get_queue_len()}  "
                 f"load={self.state.snapshot()['load_factor']:.2f}"
             )
 
-        return decision 
+        return status 

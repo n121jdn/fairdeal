@@ -1,6 +1,8 @@
+// DecisionFeed.tsx
 import { useState } from "react";
-import type { CompletedOrder, Decision, FeedTab } from "../../types";
+import type { Decision, CompletedOrder } from "../../types";
 import { Badge } from "./Badge";
+import { SectionDivider } from "./SectionDivider";
 
 interface DecisionFeedProps {
   decisions: Decision[];
@@ -8,94 +10,136 @@ interface DecisionFeedProps {
 }
 
 export function DecisionFeed({ decisions, completed }: DecisionFeedProps) {
-  const [tab, setTab] = useState<FeedTab>("live");
-  const liveReversed = [...decisions].reverse();
-  const completedReversed = [...completed].reverse();
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const getBadgeVariant = (decision: string) => {
+    if (decision === "ACCEPTED") return "accepted";
+    if (decision === "REJECTED") return "rejected";
+    return "neutral";
+  };
+
+  const getReasonText = (reason?: string) => {
+    switch (reason) {
+      case "slack":
+        return "System has capacity";
+      case "accepted":
+        return "Within SLA";
+      case "distance":
+        return "Too far under high load";
+      case "sla_breach":
+        return "Would exceed SLA";
+      default:
+        return reason;
+    }
+  };
+
+  const getReasonTooltip = (reason?: string) => {
+    switch (reason) {
+      case "slack":
+        return "More riders available than pending orders";
+      case "accepted":
+        return "Expected delivery time within SLA";
+      case "distance":
+        return "Order distance exceeds threshold when system is under high load";
+      case "sla_breach":
+        return "Expected delay would violate service level agreement";
+      default:
+        return "";
+    }
+  };
 
   return (
-    <div className="panel panel--right">
+    <div className="panel panel--feed">
+      <SectionDivider label="Decision Feed" />
+      
       <div className="feed-tabs">
-        <button
-          className={`feed-tab ${tab === "live" ? "feed-tab--active" : ""}`}
-          onClick={() => setTab("live")}
+        <button 
+          className={`feed-tab ${!showCompleted ? 'active' : ''}`}
+          onClick={() => setShowCompleted(false)}
         >
-          Live
-          {decisions.length > 0 && (
-            <span className="feed-tab__count">{decisions.length}</span>
-          )}
+          Pending Decisions ({decisions.filter(d => 
+            !completed.some(c => c.order_id === d.order_id)
+          ).length})
         </button>
-        <button
-          className={`feed-tab ${tab === "completed" ? "feed-tab--active" : ""}`}
-          onClick={() => setTab("completed")}
+        <button 
+          className={`feed-tab ${showCompleted ? 'active' : ''}`}
+          onClick={() => setShowCompleted(true)}
         >
-          Completed
-          {completed.length > 0 && (
-            <span className="feed-tab__count feed-tab__count--completed">
-              {completed.length}
-            </span>
-          )}
+          Completed ({completed.length})
         </button>
       </div>
 
-      {tab === "live" && (
-        <div className="decision-feed">
-          {liveReversed.length === 0 ? (
+      <div className="decision-feed">
+        {!showCompleted ? (
+          decisions.filter(d => !completed.some(c => c.order_id === d.order_id)).length === 0 ? (
             <div className="feed-empty">
-              No orders yet.<br />Send one below.
+              <span>No pending decisions</span>
             </div>
           ) : (
-            liveReversed.map((d, i) => (
-              <div key={i} className="feed-item">
-                <div className="feed-item__meta">
-                  <span className="feed-item__id">{d.order_id}</span>
-                  <span className="feed-item__detail">
-                    {d.distance_km} km · {d.items_count} items
-                  </span>
+            decisions
+              .filter(d => !completed.some(c => c.order_id === d.order_id))
+              .map((decision, idx) => (
+                <div key={`${decision.order_id}-${idx}`} className="feed-item">
+                  <div className="feed-item__header">
+                    <Badge 
+                      label={decision.decision} 
+                      variant={getBadgeVariant(decision.decision)} 
+                    />
+                    {decision.reason && (
+                      <span 
+                        className="feed-item__reason" 
+                        title={getReasonTooltip(decision.reason)}
+                      >
+                        {getReasonText(decision.reason)}
+                      </span>
+                    )}
+                    <span className="feed-item__timestamp">{decision.timestamp}</span>
+                  </div>
+                  <div className="feed-item__details">
+                    <span className="feed-item__order-id">{decision.order_id}</span>
+                    <span className="feed-item__metrics">
+                      {decision.distance_km} km · {decision.items_count} items
+                    </span>
+                    {decision.warehouse_id && (
+                      <span className="feed-item__warehouse">
+                        WH: {decision.warehouse_id}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="feed-item__right">
-                  <Badge
-                    label={d.decision}
-                    variant={d.decision === "ACCEPTED" ? "accepted" : "rejected"}
-                  />
-                  <span className="feed-item__time">{d.timestamp}</span>
+              ))
+          )
+        ) : (
+          // Show completed orders
+          completed.length === 0 ? (
+            <div className="feed-empty">
+              <span>No completed orders</span>
+            </div>
+          ) : (
+            completed.map((order, idx) => (
+              <div key={`completed-${order.order_id}-${idx}`} className="feed-item feed-item--completed">
+                <div className="feed-item__header">
+                  <Badge label="COMPLETED" variant="completed" />
+                  <span className="feed-item__timestamp">{order.completed_at}</span>
+                </div>
+                <div className="feed-item__details">
+                  <span className="feed-item__order-id">{order.order_id}</span>
+                  <span className="feed-item__metrics">
+                    {order.distance_km} km · {order.items_count} items
+                  </span>
+                  {order.delivery_time && (
+                    <span className="feed-item__delivery-time">
+                      Delivery: {order.delivery_time} min
+                    </span>
+                  )}
                 </div>
               </div>
             ))
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
 
-      {tab === "completed" && (
-        <div className="decision-feed">
-          {completedReversed.length === 0 ? (
-            <div className="feed-empty">
-              No completed orders yet.<br />
-              Hit <strong>Tick</strong> to advance the clock.
-            </div>
-          ) : (
-            <>
-              <div className="completed-summary">
-                <span>{completed.length} delivered</span>
-                <Badge label="all clear" variant="completed" />
-              </div>
-              {completedReversed.map((d, i) => (
-                <div key={i} className="feed-item feed-item--completed">
-                  <div className="feed-item__meta">
-                    <span className="feed-item__id">{d.order_id}</span>
-                    <span className="feed-item__detail">
-                      {d.distance_km} km · {d.items_count} items
-                    </span>
-                  </div>
-                  <div className="feed-item__right">
-                    <Badge label="DONE" variant="completed" />
-                    <span className="feed-item__time">{d.completed_at}</span>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
+      
     </div>
   );
 }

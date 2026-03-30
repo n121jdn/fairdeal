@@ -22,11 +22,31 @@ export function OrderForm({ onDecision }: OrderFormProps) {
     };
     try {
       const res = await createOrder(order);
+
+      // Extract decision and reason from API response
+      let decisionValue: string;
+      let reasonCode: string | undefined;
+
+      if (Array.isArray(res.decision)) {
+        // Handle array format: ["ACCEPTED", "slack"]
+        decisionValue = res.decision[0];
+        reasonCode = res.decision[1];
+      } else if (typeof res.decision === "string") {
+        decisionValue = res.decision;
+      } else if (res.status) {
+        decisionValue = res.status;
+      } else {
+        decisionValue = "REJECTED";
+      }
+
       onDecision({
-        ...res,
+        order_id: res.order_id,
+        decision: decisionValue,
+        reason: reasonCode, // Pass the reason
         timestamp: new Date().toLocaleTimeString(),
         distance_km: distance,
         items_count: items,
+        warehouse_id: res.warehouse_id,
       });
     } finally {
       setLoading(false);
@@ -36,9 +56,16 @@ export function OrderForm({ onDecision }: OrderFormProps) {
   return (
     <div className="order-form">
       <SectionDivider label="New order" />
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 14,
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+        }}
+      >
         <div className="field">
-          <label className="field__label">Distance (km) — {distance}</label>
+          <label className="field__label">Distance (km): {distance}</label>
           <input
             type="range"
             className="field__input"

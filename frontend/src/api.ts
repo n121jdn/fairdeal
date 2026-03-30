@@ -50,3 +50,18 @@ export async function postSimulate(duration_minutes: number): Promise<SimResult>
   });
   return r.json();
 }
+
+export async function getForecast() {
+  const res = await fetch(`${BASE}/forecast`);
+  return res.json();
+}
+
+export async function getDemandForecast() {
+  const res = await fetch(`${BASE}/ml/demand-forecast`);
+  return res.json();
+}
+
+export async function getMLStatus() {
+  const res = await fetch(`${BASE}/ml/status`);
+  return res.json();
+}

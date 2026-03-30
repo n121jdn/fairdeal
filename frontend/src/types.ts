@@ -7,15 +7,19 @@ export interface Order {
 
 export type DecisionType = "ACCEPTED" | "REJECTED";
 
-export interface Decision extends Order {
-  decision: DecisionType;
+export interface Decision {
+  order_id: string;
+  decision: string;  
+  reason?: string;   
   timestamp: string;
   distance_km: number;
   items_count: number;
+  warehouse_id: string;
 }
 
 export interface CompletedOrder extends Decision {
   completed_at: string;
+  delivery_time?: number;
 }
 
 export interface DecisionResponse {

@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { CompletedOrder, Decision, HistoryPoint, Metrics, SystemState } from "../types";
-import { getState } from "../api";
+import type {
+  CompletedOrder,
+  Decision,
+  HistoryPoint,
+  Metrics,
+  SystemState,
+} from "../types";
+import { getForecast, getState } from "../api";
 import { getSaturation } from "../utils";
 import { SaturationBanner } from "./ui/Banner";
 import { SystemPanel } from "./ui/SysPanel";
@@ -10,6 +16,7 @@ import { ControlPanel } from "./ui/ControlPanel";
 import { OrderForm } from "./ui/OrderForm";
 import { DecisionFeed } from "./ui/DecisionFeed";
 import { InfoModal } from "./ui/Info";
+import { MLInsights } from "./ui/MLInsight";
 
 export default function Dashboard() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
@@ -18,6 +25,9 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [showInfo, setShowInfo] = useState(false);
+  const [forecast, setForecast] = useState<{ forecast_rate: number } | null>(
+    null,
+  );
 
   const windowRef = useRef<{ accepted: number; rejected: number }>({
     accepted: 0,
@@ -44,20 +54,41 @@ export default function Dashboard() {
     }
     run();
     const id = setInterval(run, 2000);
-    return () => { mounted = false; clearInterval(id); };
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, []);
+  useEffect(() => {
+    async function fetchForecast() {
+      try {
+        const data = await getForecast();
+        setForecast(data);
+      } catch (error) {
+        console.warn("Failed to fetch forecast", error);
+      }
+    }
 
+    fetchForecast();
+    const interval = setInterval(fetchForecast, 5000);
+    return () => clearInterval(interval);
+  }, []);
   useEffect(() => {
     const id = setInterval(() => {
       const w = windowRef.current;
       setHistory((h) => [
         ...h.slice(-29),
-        { t: new Date().toLocaleTimeString(), accepted: w.accepted, rejected: w.rejected },
+        {
+          t: new Date().toLocaleTimeString(),
+          accepted: w.accepted,
+          rejected: w.rejected,
+          forecast_rate: forecast?.forecast_rate || 0, // Add forecast to chart
+        },
       ]);
       windowRef.current = { accepted: 0, rejected: 0 };
     }, 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [forecast]);
 
   const handleDecision = useCallback((res: Decision) => {
     setDecisions((d) => [...d, res]);
@@ -81,8 +112,8 @@ export default function Dashboard() {
               {saturation === "saturated"
                 ? "Saturated"
                 : saturation === "critical"
-                ? "Critical"
-                : "Degraded"}
+                  ? "Critical"
+                  : "Degraded"}
             </span>
           )}
           <span className="app-topbar__status">Operations · Live</span>
@@ -105,6 +136,7 @@ export default function Dashboard() {
         >
           <SystemPanel state={state} />
           <MetricsPanel onMetrics={setMetrics} />
+          <MLInsights />
         </div>
 
         <div className="panel panel--main">
