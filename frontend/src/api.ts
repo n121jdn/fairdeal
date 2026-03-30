@@ -65,3 +65,12 @@ export async function getMLStatus() {
   const res = await fetch(`${BASE}/ml/status`);
   return res.json();
 }
+
+
+export async function predictDelivery(distance_km: number, items_count: number, queue_at_dispatch = 0) {
+  const res = await fetch(
+    `${BASE}/ml/predict-delivery?distance_km=${distance_km}&items_count=${items_count}&queue_at_dispatch=${queue_at_dispatch}`
+  );
+  if (!res.ok) return null; // 503 if not trained — fail silently
+  return res.json();
+}
