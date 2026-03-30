@@ -110,7 +110,6 @@ export function DecisionFeed({ decisions, completed }: DecisionFeedProps) {
               ))
           )
         ) : (
-          // Show completed orders
           completed.length === 0 ? (
             <div className="feed-empty">
               <span>No completed orders</span>
@@ -138,8 +137,6 @@ export function DecisionFeed({ decisions, completed }: DecisionFeedProps) {
           )
         )}
       </div>
-
-      
     </div>
   );
 }

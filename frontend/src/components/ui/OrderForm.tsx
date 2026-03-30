@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import type { Decision, Order } from "../../types";
-import { createOrder, predictDelivery, getState } from "../../api";
+import { createOrder, createOrderWithML, predictDelivery, getState } from "../../api";
 import { SectionDivider } from "./SectionDivider";
 
 interface OrderFormProps {
-  onDecision: (d: Decision) => void;
+  onDecision: (d: Decision, orderDetails: Order) => void;
 }
 
 export function OrderForm({ onDecision }: OrderFormProps) {
@@ -12,6 +12,8 @@ export function OrderForm({ onDecision }: OrderFormProps) {
   const [items, setItems] = useState(10);
   const [loading, setLoading] = useState(false);
   const [queueSize, setQueueSize] = useState(0);
+  const [useML, setUseML] = useState(false);
+  const [mlInsights, setMLInsights] = useState<any>(null);
 
   const [prediction, setPrediction] = useState<{
     predicted_delivery_minutes: number;
@@ -51,18 +53,24 @@ export function OrderForm({ onDecision }: OrderFormProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [distance, items, queueSize]); // <-- queueSize is a dep
+  }, [distance, items, queueSize]);
 
   const submit = async () => {
     setLoading(true);
     const order: Order = {
-      order_id: "ORD-" + Math.floor(Math.random() * 100000),
+      order_id: "ORD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
       warehouse_id: "WH1",
       distance_km: distance,
       items_count: items,
     };
+    
     try {
-      const res = await createOrder(order);
+      const res = useML ? await createOrderWithML(order) : await createOrder(order);
+      
+      if (res.ml_insights) {
+        setMLInsights(res.ml_insights);
+      }
+      
       onDecision({
         order_id: res.order_id,
         decision: res.decision,
@@ -70,11 +78,14 @@ export function OrderForm({ onDecision }: OrderFormProps) {
         distance_km: distance,
         items_count: items,
         warehouse_id: order.warehouse_id,
-      });
+        reason: res.reason,
+      }, order);
 
       // Immediately re-sync queue after order so prediction updates right away
       const s = await getState();
       setQueueSize(s.queue_size ?? 0);
+    } catch (error) {
+      console.error("Failed to create order:", error);
     } finally {
       setLoading(false);
     }
@@ -85,6 +96,27 @@ export function OrderForm({ onDecision }: OrderFormProps) {
   return (
     <div className="order-form">
       <SectionDivider label="New order" />
+      
+      {/* ML Toggle */}
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={useML}
+            onChange={(e) => setUseML(e.target.checked)}
+            style={{ cursor: "pointer" }}
+          />
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Use ML-enhanced decisions
+          </span>
+        </label>
+        {useML && (
+          <span style={{ fontSize: 10, color: "#3b82f6", background: "rgba(59,130,246,0.1)", padding: "2px 6px", borderRadius: 4 }}>
+            ⚡ Active
+          </span>
+        )}
+      </div>
+      
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div className="field">
           <label className="field__label">Distance (km) — {distance}</label>
@@ -109,7 +141,7 @@ export function OrderForm({ onDecision }: OrderFormProps) {
         </button>
       </div>
 
-      {/* ML prediction strip — hidden when model not trained */}
+      {/* ML prediction strip */}
       {prediction && (
         <div style={{
           marginTop: 10,
@@ -143,6 +175,25 @@ export function OrderForm({ onDecision }: OrderFormProps) {
           <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-dim,#475569)", fontStyle: "italic" }}>
             ML · GBR
           </span>
+        </div>
+      )}
+      
+      {/* ML Insights after order */}
+      {mlInsights && (
+        <div style={{
+          marginTop: 10,
+          padding: "8px 12px",
+          borderRadius: 6,
+          background: "rgba(59,130,246,0.08)",
+          border: "1px solid rgba(59,130,246,0.2)",
+          fontSize: 11,
+        }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <span>Predicted: <strong>{mlInsights.predicted_delivery_time} min</strong></span>
+            <span>Forecast: <strong>{mlInsights.forecasted_arrival_rate}/s</strong></span>
+            <span>Queue wait: <strong>{mlInsights.expected_queue_time} min</strong></span>
+            <span>SLA: <strong>{mlInsights.dynamic_sla} min</strong></span>
+          </div>
         </div>
       )}
     </div>

@@ -1,3 +1,52 @@
+export interface SystemState {
+  active_riders: number;
+  busy_riders: number;
+  total_riders: number;        
+  queue_size: number;
+  avg_delivery_time: number;
+  arrival_rate: number;
+  service_rate: number;
+  load_factor: number;
+  accepted_total: number;
+  rejected_total: number;
+}
+
+export interface Metrics {
+  load_factor: number;
+  health: "healthy" | "degraded" | "critical";
+  acceptance_rate: number | null;
+  total_decisions: number;
+  accepted_total: number;
+  rejected_total: number;
+  effective_sla: number;
+  sla_mins: number;
+  active_riders: number;
+  busy_riders: number;
+  total_riders: number;
+  queue_size: number;
+  avg_delivery_time: number;
+  arrival_rate: number;
+  service_rate: number;
+}
+
+export interface Decision {
+  order_id: string;
+  decision: string;
+  timestamp: string;
+  distance_km: number;
+  items_count: number;
+  warehouse_id: string;
+  reason?: string;
+}
+
+export interface CompletedOrder {
+  order_id: string;
+  distance_km: number;
+  items_count: number;
+  completed_at: string;
+  delivery_time?: number;
+}
+
 export interface Order {
   order_id: string;
   warehouse_id: string;
@@ -5,50 +54,11 @@ export interface Order {
   items_count: number;
 }
 
-export type DecisionType = "ACCEPTED" | "REJECTED";
-
-export interface Decision {
-  order_id: string;
-  decision: string;  
-  reason?: string;   
-  timestamp: string;
-  distance_km: number;
-  items_count: number;
-  warehouse_id: string;
-}
-
-export interface CompletedOrder extends Decision {
-  completed_at: string;
-  delivery_time?: number;
-}
-
-export interface DecisionResponse {
-  order_id: string;
-  decision: DecisionType;
-}
-
-export interface SystemState {
-  active_riders: number;
-  queue_size: number;
-  avg_delivery_time: number;
-  arrival_rate: number;
-  load_factor?: number;
-  accepted_total?: number;
-  rejected_total?: number;
-  busy_riders?: number;
-  max_riders?: number;
-  queue_capacity?: number;
-}
-
-export interface Metrics {
-  acceptance_rate: number | null;
-  total_decisions: number;
-  health: "healthy" | "degraded" | "critical";
-  sla_mins: number;
-  effective_sla: number;
-  load_factor: number;
-  accepted_total: number;
-  rejected_total: number;
+export interface HistoryPoint {
+  t: string;
+  accepted: number;
+  rejected: number;
+  forecast_rate?: number;
 }
 
 export interface SimResult {
@@ -59,11 +69,59 @@ export interface SimResult {
   acceptance_rate: number;
 }
 
-export interface HistoryPoint {
-  t: string;
-  accepted: number;
-  rejected: number;
+export interface MLStatus {
+  delivery_predictor: {
+    active: boolean;
+    metrics?: { mae_minutes?: number; r2?: number; cv_mae_minutes?: number };
+    note?: string;
+  };
+  demand_forecaster: {
+    active: boolean;
+    corrector?: boolean;
+    metrics?: { cv_mae_orders_per_min?: number };
+    note?: string;
+  };
+}
+
+export interface DemandForecast {
+  current_arrival_rate: number;
+  forecasted_arrival_rate: number;
+  profile_baseline: number;
+  uncertainty: number;
+  expected_orders_next_10min: number;
+  expected_orders_range: [number, number];
+  source: string;
+  recommendation: string;
+}
+
+export interface DecisionInsights {
+  timestamp: string;
+  current_state: SystemState;
+  ml_status: {
+    delivery_predictor: {
+      active: boolean;
+      sample_predictions?: Array<{
+        distance_km: number;
+        items_count: number;
+        predicted_minutes: number;
+      }>;
+      model_accuracy?: string;
+      fallback?: string;
+    };
+    demand_forecaster: {
+      active: boolean;
+      current_rate?: number;
+      forecasted_rate?: number;
+      trend?: string;
+      expected_orders_10min?: number;
+      fallback?: string;
+    };
+  };
+  recommendations: Array<{
+    type: string;
+    message: string;
+    priority: "high" | "medium" | "low";
+  }>;
 }
 
 export type SaturationLevel = "ok" | "degraded" | "critical" | "saturated";
-export type FeedTab = "live" | "completed";

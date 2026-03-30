@@ -7,7 +7,7 @@ interface RiderBarProps {
 export function RiderBar({ state }: RiderBarProps) {
   if (!state) return null;
   const busy = state.busy_riders ?? 0;
-  const total = state.max_riders ?? state.active_riders;
+  const total = state.total_riders ?? state.active_riders;
   const pct = total > 0 ? (busy / total) * 100 : 0;
   const color =
     pct >= 100 ? "var(--red)" :
@@ -18,7 +18,7 @@ export function RiderBar({ state }: RiderBarProps) {
       <div className="rider-bar__header">
         <span className="rider-bar__label">Rider utilisation</span>
         <span className="rider-bar__value" style={{ color }}>
-          {busy}/{total}
+          {busy}/{total} ({Math.round(pct)}%)
         </span>
       </div>
       <div className="rider-bar__track">

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
 from api.orders import OrderAPI
 from core.state_manager import StateManager
-from models.order import Order
+from models.order import Order, Status
 from simulation.simulator import Simulator
 from ml.demand_forecast import demand_forecaster
 from ml.delivery_predictor import delivery_predictor
@@ -422,10 +422,15 @@ def create_order_with_ml(payload: OrderRequest):
     
     # Make decision
     if should_accept:
-        decision = order_api.accept_order(order)
-        state.add_to_queue(order)
+        order.status = Status.ACCEPTED
+        order.accepted_at = datetime.now()
+        state.add_order(order)
+        decision = Status.ACCEPTED
     else:
-        decision = order_api.reject_order(order)
+        order.status = Status.REJECTED
+        state.reject_order()
+        decision = Status.REJECTED
+
     
     # Log ML insights for dashboard
     return {
